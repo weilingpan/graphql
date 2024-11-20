@@ -1,9 +1,11 @@
 import uvicorn
 import strawberry
-from fastapi import FastAPI
+import dataclasses
+from fastapi import FastAPI, HTTPException
 from strawberry.asgi import GraphQL
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from fastapi.responses import JSONResponse
 
 
 DATABASE_URL = "sqlite:///./test.db"
@@ -26,29 +28,43 @@ class User:
     name: str
     age: int
 
+def get_user_data(user_id: int) -> User:
+    db = SessionLocal()
+    db_user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    db.close()
+    if not db_user:
+        raise ValueError(f"User with id {user_id} not found")
+    return User(name=db_user.name, age=db_user.age)
 
 @strawberry.type
 class Query:
-    # @strawberry.field
-    # def user(self) -> User:
-    #     return User(name="Patrick", age=100)
-    
     @strawberry.field
     def user(self, id: int) -> User:
-        db = SessionLocal()
-        db_user = db.query(UserModel).filter(UserModel.id == id).first()
-        db.close()
-        if db_user:
-            return User(name=db_user.name, age=db_user.age)
-        raise ValueError("User not found")
-
+        try:
+            return get_user_data(id)
+        except ValueError as e:
+            raise ValueError(str(e))
 
 schema = strawberry.Schema(query=Query)
 graphql_app = GraphQL(schema)
 
-app = FastAPI()
+app = FastAPI(title="FastAPI + GraphQL Example", version="1.0.0")
 app.add_route("/graphql", graphql_app)
 app.add_websocket_route("/graphql", graphql_app)
+
+@app.get("/api/v1/health", summary="Health Check", tags=["Health"])
+async def health_check():
+    return JSONResponse(content={"status": "ok", "message": "Service is running"})
+
+@app.get("/api/v1/users/{user_id}", summary="Get User by ID", tags=["User"])
+async def get_user(user_id: int):
+    try:
+        user = get_user_data(user_id)
+        print(type(user))
+        print(user)
+        return JSONResponse(content=dataclasses.asdict(user))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 if __name__ == "__main__":
     # insert data to db

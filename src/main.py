@@ -2,7 +2,7 @@ import uvicorn
 import strawberry
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from strawberry.asgi import GraphQL
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -12,11 +12,7 @@ from handler.utils import get_user_data
 from model.sqlalchemy.user import UserModel
 from model.graphql.user import User
 
-
-DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-Base =  declarative_base()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from database import engine, Base, SessionLocal, get_db
 
 # DB init
 Base.metadata.create_all(bind=engine)
@@ -37,6 +33,10 @@ app = FastAPI(title="FastAPI + GraphQL Example", version="1.0.0")
 app.add_route("/graphql", graphql_app)
 app.add_websocket_route("/graphql", graphql_app)
 app.include_router(router_user)
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs")
 
 @app.get("/api/v1/health", summary="Health Check", tags=["Health"])
 async def health_check():

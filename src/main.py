@@ -7,6 +7,7 @@ from strawberry.asgi import GraphQL
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from faker import Faker
+from typing import Optional, List
 
 from router.user import router as router_user
 from handler.utils import get_user_data
@@ -32,12 +33,18 @@ Base.metadata.create_all(bind=engine)
 @strawberry.type
 class Query:
     @strawberry.field
-    def user(self) -> User:
-        return User(
+    def user(self, id: Optional[int] = None) -> List[User]:
+        if id:
+            return [User(
+                id=id, 
+                name=fake.name(), 
+                age=fake.random_int(min=18, max=80))]
+        
+        return [User(
             id=fake.uuid4(),
             name=fake.name(),
-            age=fake.random_int(min=18, max=80),
-        )
+            age=fake.random_int(min=18, max=80)
+        ) for _ in range(5)]
     
 schema = strawberry.Schema(query=Query)
 graphql_app = GraphQL(schema)

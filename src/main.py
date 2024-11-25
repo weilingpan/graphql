@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from strawberry.asgi import GraphQL
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from faker import Faker
 
 from router.user import router as router_user
 from handler.utils import get_user_data
@@ -14,18 +15,30 @@ from model.graphql.user import User
 
 from database import engine, Base, SessionLocal, get_db
 
+fake = Faker()
+
 # DB init
 Base.metadata.create_all(bind=engine)
+
+# @strawberry.type
+# class Query:
+#     @strawberry.field
+#     def user(self, id: int) -> User:
+#         try:
+#             return get_user_data(id)
+#         except ValueError as e:
+#             raise ValueError(str(e))
 
 @strawberry.type
 class Query:
     @strawberry.field
-    def user(self, id: int) -> User:
-        try:
-            return get_user_data(id)
-        except ValueError as e:
-            raise ValueError(str(e))
-
+    def user(self) -> User:
+        return User(
+            id=fake.uuid4(),
+            name=fake.name(),
+            age=fake.random_int(min=18, max=80),
+        )
+    
 schema = strawberry.Schema(query=Query)
 graphql_app = GraphQL(schema)
 

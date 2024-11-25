@@ -16,4 +16,4 @@ def get_user_data(user_id: int) -> User:
     db.close()
     if not db_user:
         raise ValueError(f"User with id {user_id} not found")
-    return User(name=db_user.name, age=db_user.age)
+    return User(id=db_user.id, name=db_user.name, age=db_user.age)

@@ -6,8 +6,25 @@ echo "Loal env file: $env_file"
 
 container_name=local_graphql
 image_name=mygraphql
+os=
+
+if [[ "$(uname -s)" == "Linux" ]]; then
+    os=Linux
+    echo "This is $os."
+elif [[ "$(uname -s)" == *"MINGW"* || "$(uname -s)" == *"MSYS"* ]]; then
+    os=Windows
+    echo "This is $od."
+else
+    echo "Unknown OS."
+    exit 1
+fi
 
 docker stop $container_name && docker rm $container_name || true
+
+if ! docker image inspect $image_name >/dev/null 2>&1; then
+  echo "Image $image_name not found. Building the image..."
+  docker build -t $image_name .
+fi
 
 run_cmd="docker run"
 while IFS= read -r line; do

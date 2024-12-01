@@ -40,7 +40,11 @@ async def get_user(user_id: int):
         return JSONResponse(
                 content={
                     "status": "success",
-                    "data": dataclasses.asdict(user)
+                    "data": {
+                        "id": user[0].id,
+                        "name": user[0].name,
+                        "age": user[0].age
+                    }
                 },
                 status_code=200,
             )

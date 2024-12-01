@@ -2,6 +2,6 @@ import strawberry
 
 @strawberry.type
 class User:
-    id: str
+    id: int
     name: str
     age: int

@@ -3,7 +3,7 @@ import strawberry
 from typing import Optional, List
 
 from database import SessionLocal
-from handler.utils import get_user_data
+from handler.utils import get_user_data, create_user, update_user, delete_user
 from model.graphql.user import User
 from model.sqlalchemy.user import UserModel
 
@@ -37,38 +37,15 @@ class Query:
 class Mutation:
     @strawberry.mutation
     def create_user(self, name: str, age: int) -> User:
-        db = SessionLocal()
-        user = UserModel(name=name, age=age)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        db.close()
-        return User(id=user.id, name=user.name, age=user.age)
+        new_user = create_user(name, age)
+        return new_user
     
     @strawberry.mutation
     def update_user(self, id: int, name: Optional[str] = None, age: Optional[int] = None) -> User:
-        db = SessionLocal()
-        user = db.query(UserModel).filter(UserModel.id == id).first()
-        if user:
-            if name:
-                user.name = name
-            if age:
-                user.age = age
-            db.commit()
-            db.refresh(user)
-            db.close()
-            return user
-        db.close()
-        return None
+        user = update_user(id, name, age)
+        return user
 
     @strawberry.mutation
     def delete_user(self, id: int) -> bool:
-        db = SessionLocal()
-        user = db.query(UserModel).filter(UserModel.id == id).first()
-        if user:
-            db.delete(user)
-            db.commit()
-            db.close()
-            return True
-        db.close()
-        return False
+        user = delete_user(id)
+        return user

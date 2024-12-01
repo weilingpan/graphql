@@ -4,20 +4,13 @@ import strawberry
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse, JSONResponse
 from strawberry.asgi import GraphQL
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from faker import Faker
-from typing import Optional, List
 
 from router.user import router as router_user
-from handler.utils import get_user_data
 from model.sqlalchemy.user import UserModel
-from model.graphql.user import User
 from handler.schema import Query, Mutation
 
-from database import engine, Base, SessionLocal, get_db
+from database import engine, Base, SessionLocal
 
-fake = Faker()
 
 # DB init
 Base.metadata.create_all(bind=engine)

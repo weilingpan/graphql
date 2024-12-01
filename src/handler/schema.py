@@ -44,3 +44,31 @@ class Mutation:
         db.refresh(user)
         db.close()
         return User(id=user.id, name=user.name, age=user.age)
+    
+    @strawberry.mutation
+    def update_user(self, id: int, name: Optional[str] = None, age: Optional[int] = None) -> User:
+        db = SessionLocal()
+        user = db.query(UserModel).filter(UserModel.id == id).first()
+        if user:
+            if name:
+                user.name = name
+            if age:
+                user.age = age
+            db.commit()
+            db.refresh(user)
+            db.close()
+            return user
+        db.close()
+        return None
+
+    @strawberry.mutation
+    def delete_user(self, id: int) -> bool:
+        db = SessionLocal()
+        user = db.query(UserModel).filter(UserModel.id == id).first()
+        if user:
+            db.delete(user)
+            db.commit()
+            db.close()
+            return True
+        db.close()
+        return False

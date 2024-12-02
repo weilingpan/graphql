@@ -113,6 +113,28 @@ class Mutation:
         db.refresh(new_post)
         return PostType(id=new_post.id, title=new_post.title, content=new_post.content, author_id=new_post.author.id, author_name=new_post.author.username)
 
+    @strawberry.mutation
+    def update_user(self, id: int, username: str, email: str) -> UserType:
+        db = next(get_db())
+        user = db.query(UserModel).filter(UserModel.id == id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.username = username
+        user.email = email
+        db.commit()
+        db.refresh(user)
+        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+
+    @strawberry.mutation
+    def delete_user(self, id: int) -> UserType:
+        #TODO: posts not deleted
+        db = next(get_db())
+        user = db.query(UserModel).filter(UserModel.id == id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        db.delete(user)
+        db.commit()
+        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 # graphql_app = GraphQL(schema)
@@ -130,7 +152,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=9001)
 
-#update/delete
+#TODO: update/delete
 
 """ create a new user
 mutation {
@@ -239,6 +261,26 @@ query{
     authorId
     authorName
   }
+}
+"""
+
+""" update user
+mutation {
+    updateUser(id: 1, username: "regina", email: "regina@example.com") {
+        id
+        username
+        email
+    }
+}
+"""
+
+""" delete user
+mutation {
+    deleteUser(id: 1) {
+        id
+        username
+        email
+    }
 }
 """
 

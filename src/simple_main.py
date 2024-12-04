@@ -1,11 +1,12 @@
 import strawberry
 from typing import List
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
 from sqlalchemy import ForeignKey, create_engine, Column, Integer, String
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
 from strawberry.fastapi import GraphQLRouter
+from contextlib import asynccontextmanager
 
 
 DATABASE_URL = "sqlite:///./simple.db"
@@ -144,15 +145,25 @@ app = FastAPI(title="FastAPI + GraphQL Example", version="1.0.0")
 # app.add_route("/graphql", graphql_app)
 app.include_router(graphql_app, prefix="/graphql")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    print("Database connected on startup")
+
+    yield
+
+    engine.dispose()
+    print("Database disconnected on shutdown")
+
+
 @app.get("/", include_in_schema=False)
 async def root():
     return RedirectResponse(url="/docs")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=9001)
+    uvicorn.run(app, host="0.0.0.0", port=9000)
 
-#TODO: update/delete
 
 """ create a new user
 mutation {

@@ -1,5 +1,5 @@
 import strawberry
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
@@ -67,12 +67,19 @@ class UserType:
 @strawberry.type
 class Query:
     @strawberry.field
-    def get_user(self, id: int) -> UserType:
+    def get_user(self, id: Optional[int] = None, username: Optional[str] = None) -> UserType:
         db = next(get_db())
-        user = db.query(UserModel).filter(UserModel.id == id).first()
+        user = []
+        if id:
+            user = db.query(UserModel).filter(UserModel.id == id).first()
+        elif username:
+            user = db.query(UserModel).filter(UserModel.username == username).first()
+
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail="No user found")
+        
         return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+    
 
     @strawberry.field
     def get_post(self, id: int) -> PostType:
@@ -162,7 +169,7 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=9000)
+    uvicorn.run("simple_main:app", host="0.0.0.0", port=9000, reload=True)
 
 
 """ create a new user

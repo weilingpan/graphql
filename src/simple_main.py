@@ -4,11 +4,16 @@ from typing import List, Optional, AsyncGenerator
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
-from sqlalchemy import ForeignKey, create_engine, Column, Integer, String
+from sqlalchemy import ForeignKey, create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
 from strawberry.fastapi import GraphQLRouter
 from contextlib import asynccontextmanager
 from strawberry.types import Info
+from datetime import datetime, timedelta
+
+# def create_access_token(user_info: dict, expires_delta: Optional[timedelta] = timedelta(days=1)):
+#     print(user_info)
+#     expire = datetime.utcnow() + expires_delta
 
 
 DATABASE_URL = "sqlite:///./simple.db"
@@ -34,6 +39,8 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String)
     email = Column(String)
+    signup_time = Column(DateTime, default=datetime.utcnow)
+    expired_time = Column(DateTime)
 
     # Relationships
     posts = relationship("PostModel", back_populates="author")
@@ -65,6 +72,8 @@ class UserType:
     id: int
     username: str
     email: str
+    signup_time: datetime
+    token_expired_time: datetime
     posts: List[PostType]
 
 @strawberry.type
@@ -126,6 +135,12 @@ class Query:
 class Mutation:
     @strawberry.mutation
     def create_user(self, username: str, email: str) -> UserType:
+        # user_info = {
+        #     "username": username,
+        #     "email": email
+        # }
+        # gen_user_token = create_access_token(user_info)
+
         db = next(get_db())
         new_user = UserModel(username=username, email=email)
         db.add(new_user)

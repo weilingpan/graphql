@@ -4,7 +4,7 @@ from typing import List, Optional, AsyncGenerator
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
-from sqlalchemy import ForeignKey, create_engine, Column, Integer, String, DateTime
+from sqlalchemy import ForeignKey, create_engine, Column, Integer, String, DateTime, event
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
 from strawberry.fastapi import GraphQLRouter
 from contextlib import asynccontextmanager
@@ -39,12 +39,17 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String)
     email = Column(String)
-    signup_time = Column(DateTime, default=datetime.utcnow)
+    signup_time = Column(DateTime, default=datetime.utcnow())
     expired_time = Column(DateTime)
 
     # Relationships
     posts = relationship("PostModel", back_populates="author")
 
+# 使用 SQLAlchemy 事件監聽
+@event.listens_for(UserModel, "before_insert")
+def set_expired_time(mapper, connection, target):
+    if target.expired_time is None:
+        target.expired_time = datetime.utcnow() + timedelta(days=1)
 
 # DB init
 Base.metadata.create_all(bind=engine)
@@ -73,7 +78,7 @@ class UserType:
     username: str
     email: str
     signup_time: datetime
-    token_expired_time: datetime
+    expired_time: datetime
     posts: List[PostType]
 
 @strawberry.type
@@ -108,7 +113,12 @@ class Query:
         if not user:
             raise HTTPException(status_code=404, detail="No user found")
         
-        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+        return UserType(id=user.id, 
+                        username=user.username, 
+                        email=user.email, 
+                        posts=user.posts,
+                        signup_time=user.signup_time,
+                        expired_time=user.expired_time)
     
 
     @strawberry.field
@@ -123,7 +133,13 @@ class Query:
     def get_users(self) -> List[UserType]:
         db = next(get_db())
         users = db.query(UserModel).all()
-        return [UserType(id=user.id, username=user.username, email=user.email, posts=user.posts) for user in users]
+        return [UserType(
+            id=user.id, 
+            username=user.username, 
+            email=user.email, 
+            posts=user.posts,
+            signup_time=user.signup_time,
+            expired_time=user.expired_time) for user in users]
     
     @strawberry.field
     def get_posts(self) -> List[PostType]:
@@ -146,7 +162,12 @@ class Mutation:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        return UserType(id=new_user.id, username=new_user.username, email=new_user.email, posts=new_user.posts)
+        return UserType(id=new_user.id, 
+                        username=new_user.username, 
+                        email=new_user.email, 
+                        posts=new_user.posts,
+                        signup_time=new_user.signup_time,
+                        expired_time=new_user.expired_time)
 
     @strawberry.mutation
     def create_post(self, title: str, content: str, author_id: int) -> PostType:
@@ -167,7 +188,13 @@ class Mutation:
         user.email = email
         db.commit()
         db.refresh(user)
-        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+        return UserType(
+            id=user.id, 
+            username=user.username, 
+            email=user.email, 
+            posts=user.posts,
+            signup_time=user.signup_time,
+            expired_time=user.expired_time)
 
     @strawberry.mutation
     def delete_user(self, id: int) -> UserType:
@@ -178,7 +205,13 @@ class Mutation:
             raise HTTPException(status_code=404, detail="User not found")
         db.delete(user)
         db.commit()
-        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+        return UserType(
+            id=user.id, 
+            username=user.username, 
+            email=user.email, 
+            posts=user.posts,
+            signup_time=user.signup_time,
+            expired_time=user.expired_time)
 
 
 @strawberry.type

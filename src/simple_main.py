@@ -40,16 +40,16 @@ class UserModel(Base):
     username = Column(String)
     email = Column(String)
     signup_time = Column(DateTime, default=datetime.utcnow())
-    expired_time = Column(DateTime)
+    expired_time = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=1))
 
     # Relationships
     posts = relationship("PostModel", back_populates="author")
 
-# 使用 SQLAlchemy 事件監聽
-@event.listens_for(UserModel, "before_insert")
-def set_expired_time(mapper, connection, target):
-    if target.expired_time is None:
-        target.expired_time = datetime.utcnow() + timedelta(days=1)
+# # 使用 SQLAlchemy 事件監聽
+# @event.listens_for(UserModel, "before_insert")
+# def set_expired_time(mapper, connection, target):
+#     if target.expired_time is None:
+#         target.expired_time = datetime.utcnow() + timedelta(days=1)
 
 # DB init
 Base.metadata.create_all(bind=engine)
@@ -179,7 +179,7 @@ class Mutation:
         return PostType(id=new_post.id, title=new_post.title, content=new_post.content, author_id=new_post.author.id, author_name=new_post.author.username)
 
     @strawberry.mutation
-    def update_user(self, id: int, username: str, email: str) -> UserType:
+    def update_user(self, id: int, username: str = None, email: str = None) -> UserType:
         db = next(get_db())
         user = db.query(UserModel).filter(UserModel.id == id).first()
         if not user:

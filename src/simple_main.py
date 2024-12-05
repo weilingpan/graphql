@@ -1,13 +1,14 @@
 import asyncio
 import strawberry
 from typing import List, Optional, AsyncGenerator
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
 from sqlalchemy import ForeignKey, create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
 from strawberry.fastapi import GraphQLRouter
 from contextlib import asynccontextmanager
+from strawberry.types import Info
 
 
 DATABASE_URL = "sqlite:///./simple.db"
@@ -66,9 +67,26 @@ class UserType:
     email: str
     posts: List[PostType]
 
+@strawberry.type
+class HelloResponse:
+    message: str
+    user_agent: str
+    custom_header: str
+
 # Define GraphQL Query and Mutation
 @strawberry.type
 class Query:
+    @strawberry.field
+    def hello(self, info: Info) -> HelloResponse:
+        request: Request = info.context["request"]
+        print(request.headers)
+        user_agent = request.headers.get("user-agent", "Unknown")
+        custom_header = request.headers.get("myheader", "UnDefined")
+        return HelloResponse(
+            message="Hello!",
+            user_agent=user_agent,
+            custom_header=custom_header)
+    
     @strawberry.field
     def get_user(self, id: Optional[int] = None, username: Optional[str] = None) -> UserType:
         db = next(get_db())
@@ -336,4 +354,11 @@ curl -X POST http://localhost:9001/graphql \
 """ curl with variable
 curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -d '{"query": "query user($username: String) { getUser(username: $username) { id username email } }", "variables": {"username": "regina"}}'
 
+"""
+
+""" curl with header
+curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -d '{"query": "query { hello { message userAgent customHeader } }"}'
+
+
+curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -H "myheader: exampleHeaderInfo" -d '{"query": "query { hello { message userAgent customHeader } }"}'
 """

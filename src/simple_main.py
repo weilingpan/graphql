@@ -48,6 +48,7 @@ def get_db():
         db.close()
 
 # Define GraphQL schema
+# 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
 class PostType:
     id: int
@@ -56,6 +57,7 @@ class PostType:
     author_id: int
     author_name: str
 
+# 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
 class UserType:
     id: int
@@ -67,7 +69,7 @@ class UserType:
 @strawberry.type
 class Query:
     @strawberry.field
-    def get_user(self, id: Optional[int] = None, username: Optional[str] = None) -> UserType:
+    def get_user(self, id: int = 1, username: Optional[str] = None) -> UserType:
         db = next(get_db())
         user = []
         if id:
@@ -317,4 +319,10 @@ curl -X POST http://localhost:9001/graphql \
 curl -X POST http://localhost:9001/graphql \
 -H "Content-Type: application/json" \
 -d '{"query": "mutation { createPost(title: \"My First Post\", content: \"This is my first post!\", authorId: 2) { id title content } }"}'
+"""
+
+
+""" curl with variable
+curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -d '{"query": "query user($username: String) { getUser(username: $username) { id username email } }", "variables": {"username": "regina"}}'
+
 """

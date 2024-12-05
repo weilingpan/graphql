@@ -154,8 +154,8 @@ class Subscription:
     async def count(self, up_to: int) -> AsyncGenerator[int, None]:
         for i in range(up_to):
             print(f"Subscription: {i}")
-            await asyncio.sleep(1)
             yield i
+            await asyncio.sleep(0.5)
 
 schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)
 # graphql_app = GraphQL(schema)

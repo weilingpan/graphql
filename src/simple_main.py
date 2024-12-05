@@ -179,7 +179,7 @@ class Mutation:
         return PostType(id=new_post.id, title=new_post.title, content=new_post.content, author_id=new_post.author.id, author_name=new_post.author.username)
 
     @strawberry.mutation
-    def update_user(self, id: int, username: str = None, email: str = None) -> UserType:
+    def update_user(self, id: int, username: Optional[str] = None, email: Optional[str] = None) -> UserType:
         db = next(get_db())
         user = db.query(UserModel).filter(UserModel.id == id).first()
         if not user:

@@ -69,7 +69,7 @@ class UserType:
 @strawberry.type
 class Query:
     @strawberry.field
-    def get_user(self, id: int = 1, username: Optional[str] = None) -> UserType:
+    def get_user(self, id: Optional[int] = None, username: Optional[str] = None) -> UserType:
         db = next(get_db())
         user = []
         if id:

@@ -1,5 +1,6 @@
+import asyncio
 import strawberry
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
@@ -146,7 +147,17 @@ class Mutation:
         db.commit()
         return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+
+@strawberry.type
+class Subscription:
+    @strawberry.subscription
+    async def count(self, up_to: int) -> AsyncGenerator[int, None]:
+        for i in range(up_to):
+            print(f"Subscription: {i}")
+            await asyncio.sleep(1)
+            yield i
+
+schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)
 # graphql_app = GraphQL(schema)
 graphql_app = GraphQLRouter(schema)
 

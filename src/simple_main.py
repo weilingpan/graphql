@@ -1,11 +1,19 @@
+import asyncio
 import strawberry
-from typing import List
-from fastapi import FastAPI, HTTPException
+from typing import List, Optional, AsyncGenerator
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
-from sqlalchemy import ForeignKey, create_engine, Column, Integer, String
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy import ForeignKey, create_engine, Column, Integer, String, DateTime, event
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
 from strawberry.fastapi import GraphQLRouter
+from contextlib import asynccontextmanager
+from strawberry.types import Info
+from datetime import datetime, timedelta
+
+# def create_access_token(user_info: dict, expires_delta: Optional[timedelta] = timedelta(days=1)):
+#     print(user_info)
+#     expire = datetime.utcnow() + expires_delta
 
 
 DATABASE_URL = "sqlite:///./simple.db"
@@ -31,10 +39,17 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String)
     email = Column(String)
+    signup_time = Column(DateTime, default=datetime.utcnow())
+    expired_time = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=1))
 
     # Relationships
     posts = relationship("PostModel", back_populates="author")
 
+# # 使用 SQLAlchemy 事件監聽
+# @event.listens_for(UserModel, "before_insert")
+# def set_expired_time(mapper, connection, target):
+#     if target.expired_time is None:
+#         target.expired_time = datetime.utcnow() + timedelta(days=1)
 
 # DB init
 Base.metadata.create_all(bind=engine)
@@ -47,6 +62,7 @@ def get_db():
         db.close()
 
 # Define GraphQL schema
+# 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
 class PostType:
     id: int
@@ -55,23 +71,55 @@ class PostType:
     author_id: int
     author_name: str
 
+# 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
 class UserType:
     id: int
     username: str
     email: str
+    signup_time: datetime
+    expired_time: datetime
     posts: List[PostType]
+
+@strawberry.type
+class HelloResponse:
+    message: str
+    user_agent: str
+    custom_header: str
 
 # Define GraphQL Query and Mutation
 @strawberry.type
 class Query:
     @strawberry.field
-    def get_user(self, id: int) -> UserType:
+    def hello(self, info: Info) -> HelloResponse:
+        request: Request = info.context["request"]
+        print(request.headers)
+        user_agent = request.headers.get("user-agent", "Unknown")
+        custom_header = request.headers.get("myheader", "UnDefined")
+        return HelloResponse(
+            message="Hello!",
+            user_agent=user_agent,
+            custom_header=custom_header)
+    
+    @strawberry.field
+    def get_user(self, id: Optional[int] = None, username: Optional[str] = None) -> UserType:
         db = next(get_db())
-        user = db.query(UserModel).filter(UserModel.id == id).first()
+        user = []
+        if id:
+            user = db.query(UserModel).filter(UserModel.id == id).first()
+        elif username:
+            user = db.query(UserModel).filter(UserModel.username == username).first()
+
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+            raise HTTPException(status_code=404, detail="No user found")
+        
+        return UserType(id=user.id, 
+                        username=user.username, 
+                        email=user.email, 
+                        posts=user.posts,
+                        signup_time=user.signup_time,
+                        expired_time=user.expired_time)
+    
 
     @strawberry.field
     def get_post(self, id: int) -> PostType:
@@ -85,7 +133,13 @@ class Query:
     def get_users(self) -> List[UserType]:
         db = next(get_db())
         users = db.query(UserModel).all()
-        return [UserType(id=user.id, username=user.username, email=user.email, posts=user.posts) for user in users]
+        return [UserType(
+            id=user.id, 
+            username=user.username, 
+            email=user.email, 
+            posts=user.posts,
+            signup_time=user.signup_time,
+            expired_time=user.expired_time) for user in users]
     
     @strawberry.field
     def get_posts(self) -> List[PostType]:
@@ -97,12 +151,23 @@ class Query:
 class Mutation:
     @strawberry.mutation
     def create_user(self, username: str, email: str) -> UserType:
+        # user_info = {
+        #     "username": username,
+        #     "email": email
+        # }
+        # gen_user_token = create_access_token(user_info)
+
         db = next(get_db())
         new_user = UserModel(username=username, email=email)
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        return UserType(id=new_user.id, username=new_user.username, email=new_user.email, posts=new_user.posts)
+        return UserType(id=new_user.id, 
+                        username=new_user.username, 
+                        email=new_user.email, 
+                        posts=new_user.posts,
+                        signup_time=new_user.signup_time,
+                        expired_time=new_user.expired_time)
 
     @strawberry.mutation
     def create_post(self, title: str, content: str, author_id: int) -> PostType:
@@ -114,7 +179,7 @@ class Mutation:
         return PostType(id=new_post.id, title=new_post.title, content=new_post.content, author_id=new_post.author.id, author_name=new_post.author.username)
 
     @strawberry.mutation
-    def update_user(self, id: int, username: str, email: str) -> UserType:
+    def update_user(self, id: int, username: Optional[str] = None, email: Optional[str] = None) -> UserType:
         db = next(get_db())
         user = db.query(UserModel).filter(UserModel.id == id).first()
         if not user:
@@ -123,7 +188,13 @@ class Mutation:
         user.email = email
         db.commit()
         db.refresh(user)
-        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+        return UserType(
+            id=user.id, 
+            username=user.username, 
+            email=user.email, 
+            posts=user.posts,
+            signup_time=user.signup_time,
+            expired_time=user.expired_time)
 
     @strawberry.mutation
     def delete_user(self, id: int) -> UserType:
@@ -134,9 +205,25 @@ class Mutation:
             raise HTTPException(status_code=404, detail="User not found")
         db.delete(user)
         db.commit()
-        return UserType(id=user.id, username=user.username, email=user.email, posts=user.posts)
+        return UserType(
+            id=user.id, 
+            username=user.username, 
+            email=user.email, 
+            posts=user.posts,
+            signup_time=user.signup_time,
+            expired_time=user.expired_time)
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+
+@strawberry.type
+class Subscription:
+    @strawberry.subscription
+    async def count(self, up_to: int) -> AsyncGenerator[int, None]:
+        for i in range(up_to):
+            print(f"Subscription: {i}")
+            yield i
+            await asyncio.sleep(0.5)
+
+schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)
 # graphql_app = GraphQL(schema)
 graphql_app = GraphQLRouter(schema)
 
@@ -144,15 +231,25 @@ app = FastAPI(title="FastAPI + GraphQL Example", version="1.0.0")
 # app.add_route("/graphql", graphql_app)
 app.include_router(graphql_app, prefix="/graphql")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    print("Database connected on startup")
+
+    yield
+
+    engine.dispose()
+    print("Database disconnected on shutdown")
+
+
 @app.get("/", include_in_schema=False)
 async def root():
     return RedirectResponse(url="/docs")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=9001)
+    uvicorn.run("simple_main:app", host="0.0.0.0", port=9000, reload=True)
 
-#TODO: update/delete
 
 """ create a new user
 mutation {
@@ -299,4 +396,17 @@ curl -X POST http://localhost:9001/graphql \
 curl -X POST http://localhost:9001/graphql \
 -H "Content-Type: application/json" \
 -d '{"query": "mutation { createPost(title: \"My First Post\", content: \"This is my first post!\", authorId: 2) { id title content } }"}'
+"""
+
+
+""" curl with variable
+curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -d '{"query": "query user($username: String) { getUser(username: $username) { id username email } }", "variables": {"username": "regina"}}'
+
+"""
+
+""" curl with header
+curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -d '{"query": "query { hello { message userAgent customHeader } }"}'
+
+
+curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -H "myheader: exampleHeaderInfo" -d '{"query": "query { hello { message userAgent customHeader } }"}'
 """

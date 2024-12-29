@@ -10,6 +10,8 @@ from strawberry.fastapi import GraphQLRouter
 from contextlib import asynccontextmanager
 from strawberry.types import Info
 from datetime import datetime, timedelta
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # def create_access_token(user_info: dict, expires_delta: Optional[timedelta] = timedelta(days=1)):
 #     print(user_info)
@@ -230,6 +232,15 @@ graphql_app = GraphQLRouter(schema)
 app = FastAPI(title="FastAPI + GraphQL Example", version="1.0.0")
 # app.add_route("/graphql", graphql_app)
 app.include_router(graphql_app, prefix="/graphql")
+
+# 啟用 CORS 中間件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # 設置允許的前端 URL
+    allow_credentials=True,
+    allow_methods=["*"],  # 設置允許的 HTTP 方法
+    allow_headers=["*"],  # 設置允許的 Header
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

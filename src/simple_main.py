@@ -421,3 +421,10 @@ curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -
 
 curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -H "myheader: exampleHeaderInfo" -d '{"query": "query { hello { message userAgent customHeader } }"}'
 """
+
+
+"""
+curl -X POST http://localhost:9000/graphql \
+    -H "Content-Type: application/json" \
+    -d '{"query": "query ReadUser { user1: getUser(username: \"regina\") { id username posts { id } signupTime expiredTime } user2: getUser(username: \"lily\") { id username posts { id } signupTime expiredTime } }"}'
+"""

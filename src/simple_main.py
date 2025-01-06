@@ -89,6 +89,10 @@ class HelloResponse:
     user_agent: str
     custom_header: str
 
+# 定義Union型別
+SearchResult = strawberry.union("SearchResult", (UserType, PostType))
+
+
 # Define GraphQL Query and Mutation
 @strawberry.type
 class Query:
@@ -148,7 +152,34 @@ class Query:
         db = next(get_db())
         posts = db.query(PostModel).all()
         return [PostType(id=post.id, title=post.title, content=post.content, author_id=post.author.id, author_name=post.author.username) for post in posts]
+    
+    # 為查詢提供一個解析器
+    @strawberry.field
+    def search(self, keyword: str) -> List[SearchResult]:
+        db = next(get_db())
+        users = db.query(UserModel).all()
+        posts = db.query(PostModel).all()
 
+        results = []
+        for user in users:
+            if keyword.lower() in user.username.lower():
+                results.append(UserType(
+                                        id=user.id, 
+                                        username=user.username, 
+                                        email=user.email, 
+                                        posts=user.posts,
+                                        signup_time=user.signup_time,
+                                        expired_time=user.expired_time))
+        for post in posts:
+            if keyword.lower() in post.title.lower():
+                results.append(PostType(id=post.id, 
+                                        title=post.title, 
+                                        content=post.content, 
+                                        author_id=post.author.id, 
+                                        author_name=post.author.username))
+
+        return results
+    
 @strawberry.type
 class Mutation:
     @strawberry.mutation
@@ -427,4 +458,23 @@ curl -X POST http://localhost:9000/graphql -H "Content-Type: application/json" -
 curl -X POST http://localhost:9000/graphql \
     -H "Content-Type: application/json" \
     -d '{"query": "query ReadUser { user1: getUser(username: \"regina\") { id username posts { id } signupTime expiredTime } user2: getUser(username: \"lily\") { id username posts { id } signupTime expiredTime } }"}'
+"""
+
+"""
+fragment UserFields on UserType {
+  id
+  username
+}
+
+fragment PostFields on PostType {
+  id
+  title
+}
+
+query {
+  search(keyword: "regina") {
+    ...UserFields
+    ...PostFields
+  }
+}
 """

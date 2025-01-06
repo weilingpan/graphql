@@ -157,26 +157,30 @@ class Query:
     @strawberry.field
     def search(self, keyword: str) -> List[SearchResult]:
         db = next(get_db())
-        users = db.query(UserModel).all()
-        posts = db.query(PostModel).all()
+        keyword_filter = f"%{keyword}%"
 
+        user_results = db.query(UserModel).filter(UserModel.username.ilike(keyword_filter)).all()
+        post_results = db.query(PostModel).filter(PostModel.title.ilike(keyword_filter)).all()
+
+        # 將結果轉換為 Strawberry 類型
         results = []
-        for user in users:
-            if keyword.lower() in user.username.lower():
-                results.append(UserType(
-                                        id=user.id, 
-                                        username=user.username, 
-                                        email=user.email, 
-                                        posts=user.posts,
-                                        signup_time=user.signup_time,
-                                        expired_time=user.expired_time))
-        for post in posts:
-            if keyword.lower() in post.title.lower():
-                results.append(PostType(id=post.id, 
-                                        title=post.title, 
-                                        content=post.content, 
-                                        author_id=post.author.id, 
-                                        author_name=post.author.username))
+        for user in user_results:
+            results.append(UserType(
+                id=user.id,
+                username=user.username,
+                email=user.email,
+                posts=user.posts,
+                signup_time=user.signup_time,
+                expired_time=user.expired_time,
+            ))
+        for post in post_results:
+            results.append(PostType(
+                id=post.id,
+                title=post.title,
+                content=post.content,
+                author_id=post.author.id,
+                author_name=post.author.username,
+            ))
 
         return results
     

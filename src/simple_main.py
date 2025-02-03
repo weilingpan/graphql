@@ -1,7 +1,7 @@
 import asyncio
 import strawberry
 from typing import List, Optional, AsyncGenerator
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from strawberry.asgi import GraphQL
 from sqlalchemy import ForeignKey, create_engine, Column, Integer, String, DateTime, event
@@ -183,7 +183,8 @@ class Query:
             ))
 
         return results
-    
+
+upload_progress = {}
 @strawberry.type
 class Mutation:
     @strawberry.mutation
@@ -249,6 +250,16 @@ class Mutation:
             posts=user.posts,
             signup_time=user.signup_time,
             expired_time=user.expired_time)
+    
+    async def upload_file(self, file_id: str) -> str:
+        """模擬上傳文件 (假設為背景任務)"""
+        upload_progress[file_id] = 0  # 初始化進度
+
+        for i in range(1, 11):
+            await asyncio.sleep(0.5)  # 模擬處理時間
+            upload_progress[file_id] = i * 10  # 更新進度
+        
+        return f"檔案 {file_id} 上傳完成"
 
 
 @strawberry.type
@@ -260,6 +271,15 @@ class Subscription:
             yield i
             await asyncio.sleep(0.5)
 
+    @strawberry.subscription
+    async def file_upload_progress(self, file_id: str) -> AsyncGenerator[int, None]:
+        """訂閱檔案上傳進度"""
+        while file_id in upload_progress and upload_progress[file_id] < 100:
+            yield upload_progress[file_id]
+            await asyncio.sleep(0.5)  # 每 0.5 秒推送一次進度
+
+        yield 100 # 確保最後 100% 狀態被傳送
+
 schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)
 # graphql_app = GraphQL(schema)
 graphql_app = GraphQLRouter(schema)
@@ -267,6 +287,24 @@ graphql_app = GraphQLRouter(schema)
 app = FastAPI(title="FastAPI + GraphQL Example", version="1.0.0")
 # app.add_route("/graphql", graphql_app)
 app.include_router(graphql_app, prefix="/graphql")
+
+# API 端點：處理檔案上傳
+@app.post("/upload/")
+async def upload(file: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+    """處理檔案上傳，並在背景執行模擬的上傳進度"""
+    file_id = file.filename
+    background_tasks.add_task(upload_file_simulation, file_id)  # 在背景執行上傳
+    return {"message": "上傳開始", "file_id": file_id}
+
+# 模擬檔案上傳的背景任務
+async def upload_file_simulation(file_id: str):
+    upload_progress[file_id] = 0
+    for i in range(1, 11):
+        print(upload_progress)
+        await asyncio.sleep(0.5)  # 模擬上傳過程
+        upload_progress[file_id] = i * 10
+    upload_progress[file_id] = 100
+    print(upload_progress)
 
 # 啟用 CORS 中間件
 app.add_middleware(
@@ -480,5 +518,15 @@ query {
     ...UserFields
     ...PostFields
   }
+}
+"""
+
+"""
+subscription {
+  count(upTo: 5)
+}
+
+subscription sub_file_upload{
+  fileUploadProgress(fileId: "example.txt")
 }
 """

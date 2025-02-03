@@ -251,6 +251,7 @@ class Mutation:
             signup_time=user.signup_time,
             expired_time=user.expired_time)
     
+    @strawberry.mutation
     async def upload_file(self, file_id: str) -> str:
         """模擬上傳文件 (假設為背景任務)"""
         upload_progress[file_id] = 0  # 初始化進度
@@ -260,6 +261,12 @@ class Mutation:
             upload_progress[file_id] = i * 10  # 更新進度
         
         return f"檔案 {file_id} 上傳完成"
+    
+    """
+    mutation upoloadFile{
+        uploadFile(fileId: "file1.txt")
+    }
+    """
 
 
 @strawberry.type

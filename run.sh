@@ -1,3 +1,5 @@
+# docker run -d --name redis -p 6379:6379 redis #TODO docker compose
+
 port=9000
 echo "Service is running on Port: $port"
 
@@ -5,7 +7,7 @@ env_file="dockerenv/test.env"
 echo "Loal env file: $env_file"
 
 container_name=local_graphql
-image_name=mygraphql:0.0.4
+image_name=mygraphql:0.0.5
 os=
 
 if [[ "$(uname -s)" == "Linux" ]]; then

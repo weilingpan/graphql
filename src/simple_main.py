@@ -1,3 +1,4 @@
+import time
 import asyncio
 import strawberry
 from typing import List, Optional, AsyncGenerator
@@ -11,7 +12,13 @@ from contextlib import asynccontextmanager
 from strawberry.types import Info
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
+from redis import Redis
+from rq import Queue
 
+
+# 建立 Redis 連線
+redis_conn = Redis(host="redis", port=6379, decode_responses=True)
+queue = Queue("uploads", connection=redis_conn)  # 建立 Redis 任務佇列 rq worker uploads
 
 # def create_access_token(user_info: dict, expires_delta: Optional[timedelta] = timedelta(days=1)):
 #     print(user_info)
@@ -251,22 +258,22 @@ class Mutation:
             signup_time=user.signup_time,
             expired_time=user.expired_time)
     
-    @strawberry.mutation
-    async def upload_file(self, file_id: str) -> str:
-        """模擬上傳文件 (假設為背景任務)"""
-        upload_progress[file_id] = 0  # 初始化進度
+    # @strawberry.mutation
+    # async def upload_file(self, file_id: str) -> str:
+    #     """模擬上傳文件 (假設為背景任務)"""
+    #     upload_progress[file_id] = 0  # 初始化進度
 
-        for i in range(1, 11):
-            await asyncio.sleep(0.5)  # 模擬處理時間
-            upload_progress[file_id] = i * 10  # 更新進度
+    #     for i in range(1, 11):
+    #         await asyncio.sleep(0.5)  # 模擬處理時間
+    #         upload_progress[file_id] = i * 10  # 更新進度
         
-        return f"檔案 {file_id} 上傳完成"
+    #     return f"檔案 {file_id} 上傳完成"
     
-    """
-    mutation upoloadFile{
-        uploadFile(fileId: "file1.txt")
-    }
-    """
+    # """
+    # mutation upoloadFile{
+    #     uploadFile(fileId: "file1.txt")
+    # }
+    # """
 
 
 @strawberry.type
@@ -287,6 +294,24 @@ class Subscription:
 
         yield 100 # 確保最後 100% 狀態被傳送
 
+    @strawberry.subscription
+    async def upload_progress(self, file_id: str) -> AsyncGenerator[int, None]:
+        """GraphQL 訂閱檔案上傳進度"""
+        while True:
+            progress = redis_conn.hget("upload_progress", file_id)
+            if progress is None:
+                yield 0  # 預設回傳 0%
+            else:
+                yield int(progress)
+                if int(progress) == 100:
+                    break  # 上傳完成後停止
+            await asyncio.sleep(1)  # 每秒回傳一次
+
+""" 應用情境 - 檔案上傳進度追蹤
+使用 FastAPI POST API 處理檔案上傳，並使用 BackgroundTasks (檔案上傳可能會超過 1 分鐘，或需要追蹤進度，建議使用 Redis Queue！)
+使用 GraphQL Subscription 監聽上傳進度
+"""
+
 schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)
 # graphql_app = GraphQL(schema)
 graphql_app = GraphQLRouter(schema)
@@ -300,7 +325,8 @@ app.include_router(graphql_app, prefix="/graphql")
 async def upload(file: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
     """處理檔案上傳，並在背景執行模擬的上傳進度"""
     file_id = file.filename
-    background_tasks.add_task(upload_file_simulation, file_id)  # 在背景執行上傳
+    # background_tasks.add_task(upload_file_simulation, file_id)  # 在背景執行上傳
+    queue.enqueue(upload_file_simulation2, file_id)  # 加入任務佇列
     return {"message": "上傳開始", "file_id": file_id}
 
 # 模擬檔案上傳的背景任務
@@ -312,6 +338,16 @@ async def upload_file_simulation(file_id: str):
         upload_progress[file_id] = i * 10
     upload_progress[file_id] = 100
     print(upload_progress)
+
+async def upload_file_simulation2(file_id: str):
+    """模擬檔案上傳進度"""
+    redis_conn.hset("upload_progress", file_id, 0)  # 初始化進度
+
+    for i in range(1, 11):
+        time.sleep(0.5)  # 模擬上傳過程
+        redis_conn.hset("upload_progress", file_id, i * 10)  # 更新進度
+
+    redis_conn.hset("upload_progress", file_id, 100)  # 完成
 
 # 啟用 CORS 中間件
 app.add_middleware(

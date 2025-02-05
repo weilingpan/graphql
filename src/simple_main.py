@@ -373,6 +373,43 @@ async def lifespan(app: FastAPI):
 async def root():
     return RedirectResponse(url="/docs")
 
+from pydantic import BaseModel
+class Fruit(BaseModel):
+	name: str
+	price: float
+
+FRUIT_DATABASE = [
+	Fruit(name="蘋果", price=10.0),
+	Fruit(name="香蕉", price=5.0),
+	Fruit(name="橘子", price=8.0),
+	Fruit(name="芭樂", price=7.0),
+	Fruit(name="西瓜", price=15.0),
+	Fruit(name="梨子", price=6.0),
+	Fruit(name="櫻桃", price=20.0),
+	Fruit(name="葡萄", price=12.0),
+	Fruit(name="橙子", price=9.0),
+	Fruit(name="柚子", price=11.0),
+]
+
+MAX_ITEMS = 10
+DEFAULT_SKIP = 0
+@app.get("/", operation_id="get_welcome_message")
+async def get_welcome_message():
+	return {"message": "歡迎使用水果 API"}
+
+@app.get("/fruits/{fruit_id}", operation_id="get_fruit_by_id")
+async def get_fruit_by_id(fruit_id: int) -> Fruit:
+	try:
+		return FRUIT_DATABASE[fruit_id]
+	except IndexError:
+		raise HTTPException(status_code=404, detail="找不到指定 ID 的水果")
+		
+@app.get("/fruits/", operation_id="get_fruits")
+async def get_fruits(skip: int = DEFAULT_SKIP, limit: int = MAX_ITEMS):
+	return FRUIT_DATABASE[skip : skip + limit]
+
+#TODO: upload file to mongo
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("simple_main:app", host="0.0.0.0", port=9000, reload=True)

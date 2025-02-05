@@ -409,6 +409,33 @@ async def get_fruits(skip: int = DEFAULT_SKIP, limit: int = MAX_ITEMS):
 	return FRUIT_DATABASE[skip : skip + limit]
 
 #TODO: upload file to mongo
+from pymongo import MongoClient
+import os
+import pandas as pd
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://mymongo:27017/mydatabase")
+client = MongoClient(MONGO_URI)
+# create a endpoint to save file to mongo
+@app.post("/save_to_mongo/")
+async def save_to_mongo():
+    db = client["mydatabase"]
+    collection = db["files"]
+
+    # file_path = "member.xlsx"
+    print(f"current dir: {os.getcwd()}")
+    file_path = "docs/member.xlsx"
+    df = pd.read_excel(file_path)
+    data = df.to_dict(orient="records")
+    collection.insert_many(data)
+    
+    return {"message": "文件上傳成功！"}
+# db = client["mydatabase"]
+# collection = db["texts"]
+
+# print("成功連接 MongoDB！")
+# collection.insert_one({"message": "Hello from FastAPI & MongoDB!"})
+# print("插入測試數據成功！")
+
 
 if __name__ == "__main__":
     import uvicorn

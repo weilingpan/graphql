@@ -5,8 +5,17 @@ services:
     ports:
       - "6379:6379"
 
+  mongo:
+    image: mongo:latest
+    container_name: mymongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
   app:
-    build: .
+    # build: .
+    image: mygraphql:0.0.8
     container_name: local_graphql
     depends_on:
       - redis
@@ -15,5 +24,10 @@ services:
     ports:
       - "9000:9000"
     volumes:
-      - ./src:/app 
+      - ./src:/app
+      - ./docs:/app/docs
     command: ["python3", "simple_main.py"]
+
+volumes:
+  mongo_data:
+    driver: local

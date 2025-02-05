@@ -417,9 +417,9 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://mymongo:27017/mydatabase")
 client = MongoClient(MONGO_URI)
 # create a endpoint to save file to mongo
 @app.post("/save_to_mongo/")
-async def save_to_mongo():
+async def save_to_mongo(collection_name: str = "files"):
     db = client["mydatabase"]
-    collection = db["files"]
+    collection = db[collection_name]
 
     # file_path = "member.xlsx"
     print(f"current dir: {os.getcwd()}")

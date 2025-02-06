@@ -1,0 +1,236 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: upload file
+  use_icon_as_answer_icon: false
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: document-extractor
+      id: 1738772601771-source-1738772606430-target
+      source: '1738772601771'
+      sourceHandle: source
+      target: '1738772606430'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: document-extractor
+        targetType: tool
+      id: 1738772606430-source-1738853016340-target
+      source: '1738772606430'
+      sourceHandle: source
+      target: '1738853016340'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: tool
+        targetType: end
+      id: 1738853016340-source-1738777307677-target
+      source: '1738853016340'
+      sourceHandle: source
+      target: '1738777307677'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - image
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          label: file
+          max_length: 48
+          options: []
+          required: true
+          type: file
+          variable: file
+        - label: collection
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: collection
+      height: 116
+      id: '1738772601771'
+      position:
+        x: 30
+        y: 245
+      positionAbsolute:
+        x: 30
+        y: 245
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        is_array_file: false
+        selected: false
+        title: 文件提取器
+        type: document-extractor
+        variable_selector:
+        - '1738772601771'
+        - file
+      height: 92
+      id: '1738772606430'
+      position:
+        x: 333
+        y: 245
+      positionAbsolute:
+        x: 333
+        y: 245
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        author: regina
+        desc: ''
+        height: 88
+        selected: false
+        showAuthor: true
+        text: '{"root":{"children":[{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"註解","type":"text","version":1}],"direction":"ltr","format":"","indent":0,"type":"paragraph","version":1,"textFormat":0}],"direction":"ltr","format":"","indent":0,"type":"root","version":1}}'
+        theme: blue
+        title: ''
+        type: ''
+        width: 240
+      height: 88
+      id: '1738772637599'
+      position:
+        x: 82.50172424316406
+        y: 154.0017318725586
+      positionAbsolute:
+        x: 82.50172424316406
+        y: 154.0017318725586
+      sourcePosition: right
+      targetPosition: left
+      type: custom-note
+      width: 240
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - '1738772606430'
+          - text
+          variable: content
+        - value_selector:
+          - '1738853016340'
+          - text
+          variable: status
+        selected: false
+        title: 結束 2
+        type: end
+      height: 116
+      id: '1738777307677'
+      position:
+        x: 934.0254253525937
+        y: 192.76696620223262
+      positionAbsolute:
+        x: 934.0254253525937
+        y: 192.76696620223262
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        provider_id: f37f2dcd-00d7-47ca-a72a-bf510c5b93c7
+        provider_name: fastapi
+        provider_type: api
+        selected: false
+        title: save_to_mongo
+        tool_configurations: {}
+        tool_label: save_to_mongo
+        tool_name: save_to_mongo
+        tool_parameters:
+          collection_name:
+            type: mixed
+            value: '{{#1738772601771.collection#}}'
+          content:
+            type: mixed
+            value: '{{#1738772606430.text#}}'
+        type: tool
+      height: 54
+      id: '1738853016340'
+      position:
+        x: 637
+        y: 245
+      positionAbsolute:
+        x: 637
+        y: 245
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 192.8372585827966
+      y: 170.2802189520355
+      zoom: 0.7000000000000002

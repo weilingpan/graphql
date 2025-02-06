@@ -25,3 +25,4 @@ redis
 pymongo
 pandas
 openpyxl
+tabulate

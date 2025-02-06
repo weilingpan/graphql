@@ -1,6 +1,9 @@
+import os
+import uuid
 import time
 import asyncio
 import strawberry
+import pandas as pd
 from typing import List, Optional, AsyncGenerator
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import RedirectResponse
@@ -12,13 +15,19 @@ from contextlib import asynccontextmanager
 from strawberry.types import Info
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
-from redis import Redis
 from rq import Queue
-
+from redis import Redis
+from pymongo import MongoClient
+from pydantic import BaseModel
+from tabulate import tabulate
 
 # 建立 Redis 連線
 redis_conn = Redis(host="redis", port=6379, decode_responses=True)
 queue = Queue("uploads", connection=redis_conn)  # 建立 Redis 任務佇列 rq worker uploads
+
+# MongoDB 連線
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://mymongo:27017/mydatabase")
+client = MongoClient(MONGO_URI)
 
 # def create_access_token(user_info: dict, expires_delta: Optional[timedelta] = timedelta(days=1)):
 #     print(user_info)
@@ -373,7 +382,6 @@ async def lifespan(app: FastAPI):
 async def root():
     return RedirectResponse(url="/docs")
 
-from pydantic import BaseModel
 class Fruit(BaseModel):
 	name: str
 	price: float
@@ -408,27 +416,24 @@ async def get_fruit_by_id(fruit_id: int) -> Fruit:
 async def get_fruits(skip: int = DEFAULT_SKIP, limit: int = MAX_ITEMS):
 	return FRUIT_DATABASE[skip : skip + limit]
 
-#TODO: upload file to mongo
-from pymongo import MongoClient
-import os
-import pandas as pd
+class ContentModel(BaseModel):
+    content: str
+    collection_name: str = "dify_upload"
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://mymongo:27017/mydatabase")
-client = MongoClient(MONGO_URI)
 # create a endpoint to save file to mongo
-@app.post("/save_to_mongo/")
-async def save_to_mongo(collection_name: str = "files"):
-    db = client["mydatabase"]
-    collection = db[collection_name]
-
-    # file_path = "member.xlsx"
-    print(f"current dir: {os.getcwd()}")
-    file_path = "docs/member.xlsx"
-    df = pd.read_excel(file_path)
+@app.post("/save_to_mongo/", operation_id="save_to_mongo")
+async def save_to_mongo(input_data: ContentModel):    
+    md_string = input_data.content
+    data = [line.split('|')[1:-1] for line in md_string.strip().split('\n')[2:]]
+    df = pd.DataFrame(data, columns=[col.strip() for col in md_string.split('\n')[1].split('|')[1:-1]])
     data = df.to_dict(orient="records")
-    collection.insert_many(data)
     
-    return {"message": "文件上傳成功！"}
+    collection_id = uuid.uuid4().hex[:16]
+    db = client["dify"]
+    collection = db[f"{input_data.collection_name}_{collection_id}"]
+    collection.insert_many(data)
+    return {"message": "Data saved successfully"}
+
 # db = client["mydatabase"]
 # collection = db["texts"]
 

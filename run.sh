@@ -7,7 +7,7 @@ env_file="dockerenv/test.env"
 echo "Loal env file: $env_file"
 
 container_name=local_graphql
-image_name=mygraphql:0.0.8
+image_name=mygraphql:0.0.9
 os=
 
 if [[ "$(uname -s)" == "Linux" ]]; then

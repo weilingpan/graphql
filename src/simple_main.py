@@ -4,6 +4,7 @@ import time
 import asyncio
 import strawberry
 import pandas as pd
+from datetime import datetime
 from typing import List, Optional, AsyncGenerator
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import RedirectResponse
@@ -428,6 +429,7 @@ async def save_to_mongo(input_data: ContentModel):
     columns = [ _.strip() for _ in data[0]]
     cleaned_data = [[item.strip() for item in row] for row in data[2:]]
     df = pd.DataFrame(cleaned_data, columns=columns)
+    df["created_datetime"] = datetime.now()
     data = df.to_dict(orient="records")
     
     collection_id = uuid.uuid4().hex[:16]

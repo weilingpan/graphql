@@ -57,17 +57,6 @@ workflow:
     edges:
     - data:
         isInIteration: false
-        sourceType: start
-        targetType: document-extractor
-      id: 1738772601771-source-1738772606430-target
-      source: '1738772601771'
-      sourceHandle: source
-      target: '1738772606430'
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
         sourceType: document-extractor
         targetType: tool
       id: 1738772606430-source-1738853016340-target
@@ -85,6 +74,50 @@ workflow:
       source: '1738853016340'
       sourceHandle: source
       target: '1738777307677'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: if-else
+      id: 1738772601771-source-1738853521492-target
+      source: '1738772601771'
+      sourceHandle: source
+      target: '1738853521492'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: if-else
+        targetType: document-extractor
+      id: 1738853521492-true-1738772606430-target
+      source: '1738853521492'
+      sourceHandle: 'true'
+      target: '1738772606430'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: if-else
+        targetType: code
+      id: 1738853521492-false-1738854620739-target
+      source: '1738853521492'
+      sourceHandle: 'false'
+      target: '1738854620739'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: end
+      id: 1738854620739-source-1738853570353-target
+      source: '1738854620739'
+      sourceHandle: source
+      target: '1738853570353'
       targetHandle: target
       type: custom
       zIndex: 0
@@ -118,10 +151,10 @@ workflow:
       id: '1738772601771'
       position:
         x: 30
-        y: 245
+        y: 263
       positionAbsolute:
         x: 30
-        y: 245
+        y: 263
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -139,11 +172,11 @@ workflow:
       height: 92
       id: '1738772606430'
       position:
-        x: 333
-        y: 245
+        x: 638
+        y: 263
       positionAbsolute:
-        x: 333
-        y: 245
+        x: 638
+        y: 263
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -184,17 +217,17 @@ workflow:
           - text
           variable: status
         selected: false
-        title: 結束 2
+        title: Upload success
         type: end
       height: 116
       id: '1738777307677'
       position:
-        x: 934.0254253525937
-        y: 192.76696620223262
+        x: 1246
+        y: 263
       positionAbsolute:
-        x: 934.0254253525937
-        y: 192.76696620223262
-      selected: true
+        x: 1246
+        y: 263
+      selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
@@ -220,17 +253,102 @@ workflow:
       height: 54
       id: '1738853016340'
       position:
-        x: 637
-        y: 245
+        x: 942
+        y: 263
       positionAbsolute:
-        x: 637
-        y: 245
+        x: 942
+        y: 263
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: 0c2d5bcc-5fa3-4623-8729-0c1acf2f58c2
+            value: .xlsx
+            varType: string
+            variable_selector:
+            - '1738772601771'
+            - file
+            - extension
+          id: 'true'
+          logical_operator: and
+        desc: ''
+        selected: false
+        title: 條件分支
+        type: if-else
+      height: 126
+      id: '1738853521492'
+      position:
+        x: 334
+        y: 263
+      positionAbsolute:
+        x: 334
+        y: 263
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: wrong file type
+        outputs:
+        - value_selector:
+          - '1738854620739'
+          - result
+          variable: result
+        selected: false
+        title: Upload fail
+        type: end
+      height: 118
+      id: '1738853570353'
+      position:
+        x: 942
+        y: 357
+      positionAbsolute:
+        x: 942
+        y: 357
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "\ndef main(extension: str) -> dict:\n    return {\n        \"result\"\
+          : f\"not support {extension}\",\n    }\n"
+        code_language: python3
+        desc: ''
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 代碼執行
+        type: code
+        variables:
+        - value_selector:
+          - '1738772601771'
+          - file
+          - extension
+          variable: extension
+      height: 54
+      id: '1738854620739'
+      position:
+        x: 638
+        y: 408
+      positionAbsolute:
+        x: 638
+        y: 408
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 244
     viewport:
-      x: 192.8372585827966
-      y: 170.2802189520355
-      zoom: 0.7000000000000002
+      x: 0
+      y: 0
+      zoom: 0.7

@@ -424,8 +424,10 @@ class ContentModel(BaseModel):
 @app.post("/save_to_mongo/", operation_id="save_to_mongo")
 async def save_to_mongo(input_data: ContentModel):    
     md_string = input_data.content
-    data = [line.split('|')[1:-1] for line in md_string.strip().split('\n')[2:]]
-    df = pd.DataFrame(data, columns=[col.strip() for col in md_string.split('\n')[1].split('|')[1:-1]])
+    data = [line.split('|')[1:-1] for line in md_string.strip().split('\n')]
+    columns = [ _.strip() for _ in data[0]]
+    cleaned_data = [[item.strip() for item in row] for row in data[2:]]
+    df = pd.DataFrame(cleaned_data, columns=columns)
     data = df.to_dict(orient="records")
     
     collection_id = uuid.uuid4().hex[:16]

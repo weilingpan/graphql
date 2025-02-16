@@ -84,16 +84,16 @@ def get_db():
 # 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
 class PostType:
-    id: int
+    id: strawberry.ID
     title: str
     content: str
-    author_id: int
+    author_id: strawberry.ID
     author_name: str
 
 # 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
 class UserType:
-    id: int
+    id: strawberry.ID
     username: str
     email: str
     signup_time: datetime
@@ -225,7 +225,7 @@ class Mutation:
                         expired_time=new_user.expired_time)
 
     @strawberry.mutation
-    def create_post(self, title: str, content: str, author_id: int) -> PostType:
+    def create_post(self, title: str, content: str, author_id: strawberry.ID) -> PostType:
         db = next(get_db())
         new_post = PostModel(title=title, content=content, author_id=author_id)
         db.add(new_post)
@@ -234,7 +234,7 @@ class Mutation:
         return PostType(id=new_post.id, title=new_post.title, content=new_post.content, author_id=new_post.author.id, author_name=new_post.author.username)
 
     @strawberry.mutation
-    def update_user(self, id: int, username: Optional[str] = None, email: Optional[str] = None) -> UserType:
+    def update_user(self, id: strawberry.ID, username: Optional[str] = None, email: Optional[str] = None) -> UserType:
         db = next(get_db())
         user = db.query(UserModel).filter(UserModel.id == id).first()
         if not user:
@@ -252,7 +252,7 @@ class Mutation:
             expired_time=user.expired_time)
 
     @strawberry.mutation
-    def delete_user(self, id: int) -> UserType:
+    def delete_user(self, id: strawberry.ID) -> UserType:
         #TODO: posts not deleted
         db = next(get_db())
         user = db.query(UserModel).filter(UserModel.id == id).first()
@@ -402,7 +402,7 @@ FRUIT_DATABASE = [
 
 MAX_ITEMS = 10
 DEFAULT_SKIP = 0
-@app.get("/", operation_id="get_welcome_message")
+@app.get("/welcome", operation_id="get_welcome_message")
 async def get_welcome_message():
 	return {"message": "歡迎使用水果 API"}
 
@@ -431,6 +431,7 @@ async def save_to_mongo(input_data: ContentModel):
     df = pd.DataFrame(cleaned_data, columns=columns)
     df["created_datetime"] = datetime.now()
     data = df.to_dict(orient="records")
+    # data = [dict(zip(columns, row)) for row in cleaned_data]
     
     collection_id = uuid.uuid4().hex[:16]
     db = client["dify"]

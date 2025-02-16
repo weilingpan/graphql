@@ -80,6 +80,10 @@ def get_db():
     finally:
         db.close()
 
+def get_db_session():
+    with SessionLocal() as db:
+        return db
+
 # Define GraphQL schema
 # 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
@@ -126,7 +130,8 @@ class Query:
     
     @strawberry.field
     def get_user(self, id: Optional[int] = None, username: Optional[str] = None) -> UserType:
-        db = next(get_db())
+        # db = next(get_db()) #TODO: 容易導致 Session 洩漏
+        db = get_db_session()  # 正確管理 DB session
         user = []
         if id:
             user = db.query(UserModel).filter(UserModel.id == id).first()
@@ -146,7 +151,8 @@ class Query:
 
     @strawberry.field
     def get_post(self, id: int) -> PostType:
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         post = db.query(PostModel).filter(PostModel.id == id).first()
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
@@ -154,7 +160,8 @@ class Query:
     
     @strawberry.field
     def get_users(self) -> List[UserType]:
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         users = db.query(UserModel).all()
         return [UserType(
             id=user.id, 
@@ -166,14 +173,16 @@ class Query:
     
     @strawberry.field
     def get_posts(self) -> List[PostType]:
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         posts = db.query(PostModel).all()
         return [PostType(id=post.id, title=post.title, content=post.content, author_id=post.author.id, author_name=post.author.username) for post in posts]
     
     # 為查詢提供一個解析器
     @strawberry.field
     def search(self, keyword: str) -> List[SearchResult]:
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         keyword_filter = f"%{keyword}%"
 
         user_results = db.query(UserModel).filter(UserModel.username.ilike(keyword_filter)).all()
@@ -212,7 +221,8 @@ class Mutation:
         # }
         # gen_user_token = create_access_token(user_info)
 
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         new_user = UserModel(username=username, email=email)
         db.add(new_user)
         db.commit()
@@ -226,7 +236,8 @@ class Mutation:
 
     @strawberry.mutation
     def create_post(self, title: str, content: str, author_id: strawberry.ID) -> PostType:
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         new_post = PostModel(title=title, content=content, author_id=author_id)
         db.add(new_post)
         db.commit()
@@ -235,7 +246,8 @@ class Mutation:
 
     @strawberry.mutation
     def update_user(self, id: strawberry.ID, username: Optional[str] = None, email: Optional[str] = None) -> UserType:
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         user = db.query(UserModel).filter(UserModel.id == id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -254,7 +266,8 @@ class Mutation:
     @strawberry.mutation
     def delete_user(self, id: strawberry.ID) -> UserType:
         #TODO: posts not deleted
-        db = next(get_db())
+        # db = next(get_db())
+        db = get_db_session()
         user = db.query(UserModel).filter(UserModel.id == id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")

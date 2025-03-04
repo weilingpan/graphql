@@ -131,17 +131,23 @@ class Query:
     @strawberry.field
     def get_user(self, 
                  id: Optional[int] = None, 
-                 username: Optional[str] = None) -> List[UserType]:
-        # db = next(get_db()) #TODO: 容易導致 Session 洩漏
+                 username: Optional[str] = None,
+                 limit: int = 10, 
+                 offset: int = 0) -> List[UserType]:
+        # db = next(get_db()) # 容易導致 Session 洩漏
         db = get_db_session()  # 正確管理 DB session
+        
+        query = db.query(UserModel)
+    
         if id:
-            user = db.query(UserModel).filter(UserModel.id == id)
+            query = query.filter(UserModel.id == id)
         elif username:
-            user = db.query(UserModel).filter(UserModel.username == username)
-        else:
-            user = db.query(UserModel).all()
+            query = query.filter(UserModel.username == username)
+        
+        query = query.offset(offset).limit(limit)
+        users = query.all()
 
-        if not user:
+        if not users:
             raise HTTPException(status_code=404, detail="No user found")
         
         def convert_post(post):
@@ -159,7 +165,7 @@ class Query:
             email=_.email, 
             posts=[convert_post(p) for p in _.posts],
             signup_time=_.signup_time,
-            expired_time=_.expired_time) for _ in user]
+            expired_time=_.expired_time) for _ in users]
     
 
     @strawberry.field
@@ -671,5 +677,19 @@ subscription {
 
 subscription sub_file_upload{
   fileUploadProgress(fileId: "example.txt")
+}
+"""
+
+"""
+query ReadUser {
+  getUser(offset:1, limit: 3) {
+    id
+    username
+    posts {
+      id
+    }
+    signupTime
+    expiredTime
+  }
 }
 """

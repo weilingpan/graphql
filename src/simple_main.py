@@ -129,24 +129,37 @@ class Query:
             custom_header=custom_header)
     
     @strawberry.field
-    def get_user(self, id: Optional[int] = None, username: Optional[str] = None) -> UserType:
+    def get_user(self, 
+                 id: Optional[int] = None, 
+                 username: Optional[str] = None) -> List[UserType]:
         # db = next(get_db()) #TODO: 容易導致 Session 洩漏
         db = get_db_session()  # 正確管理 DB session
-        user = []
         if id:
-            user = db.query(UserModel).filter(UserModel.id == id).first()
+            user = db.query(UserModel).filter(UserModel.id == id)
         elif username:
-            user = db.query(UserModel).filter(UserModel.username == username).first()
+            user = db.query(UserModel).filter(UserModel.username == username)
+        else:
+            user = db.query(UserModel).all()
 
         if not user:
             raise HTTPException(status_code=404, detail="No user found")
         
-        return UserType(id=user.id, 
-                        username=user.username, 
-                        email=user.email, 
-                        posts=user.posts,
-                        signup_time=user.signup_time,
-                        expired_time=user.expired_time)
+        def convert_post(post):
+            return PostType(
+                id=post.id,
+                title=post.title,
+                content=post.content,
+                author_id=post.author.id,
+                author_name=post.author.username
+            )
+    
+        return [UserType(
+            id=_.id, 
+            username=_.username, 
+            email=_.email, 
+            posts=[convert_post(p) for p in _.posts],
+            signup_time=_.signup_time,
+            expired_time=_.expired_time) for _ in user]
     
 
     @strawberry.field
@@ -158,18 +171,18 @@ class Query:
             raise HTTPException(status_code=404, detail="Post not found")
         return PostType(id=post.id, title=post.title, content=post.content, author_id=post.author.id, author_name=post.author.username)
     
-    @strawberry.field
-    def get_users(self) -> List[UserType]:
-        # db = next(get_db())
-        db = get_db_session()
-        users = db.query(UserModel).all()
-        return [UserType(
-            id=user.id, 
-            username=user.username, 
-            email=user.email, 
-            posts=user.posts,
-            signup_time=user.signup_time,
-            expired_time=user.expired_time) for user in users]
+    # @strawberry.field
+    # def get_users(self) -> List[UserType]:
+    #     # db = next(get_db())
+    #     db = get_db_session()
+    #     users = db.query(UserModel).all()
+    #     return [UserType(
+    #         id=user.id, 
+    #         username=user.username, 
+    #         email=user.email, 
+    #         posts=user.posts,
+    #         signup_time=user.signup_time,
+    #         expired_time=user.expired_time) for user in users]
     
     @strawberry.field
     def get_posts(self) -> List[PostType]:

@@ -103,6 +103,7 @@ class UserType:
     signup_time: datetime
     expired_time: datetime
     posts: List[PostType]
+    cursor: Optional[str] = None  # 添加游標字段
 
 @strawberry.type
 class HelloResponse:
@@ -128,6 +129,56 @@ class Query:
             user_agent=user_agent,
             custom_header=custom_header)
     
+    """
+    使用 Cursored-based Pagination 時有一個非常重要的要求，那就是資料必須有明確且固定的排序機制，不然 cursor 就失去了紀錄位址的功能。
+    # """
+    # @strawberry.field
+    # def get_user(self, 
+    #             id: Optional[int] = None, 
+    #             username: Optional[str] = None,
+    #             cursor: Optional[int] = None, 
+    #             limit: int = 10) -> List[UserType]:
+    #     db = get_db_session()
+    #     query = db.query(UserModel)
+
+    #     if id:
+    #         query = query.filter(UserModel.id == id)
+    #     elif username:
+    #         query = query.filter(UserModel.username == username)
+    #     else:
+    #         if cursor:
+    #             query = query.filter(UserModel.id > cursor)
+    #         query = query.order_by(UserModel.id).limit(limit)
+        
+    #     users = query.all()
+
+    #     if not users:
+    #         raise HTTPException(status_code=404, detail="No user found")
+        
+    #     def convert_post(post):
+    #         return PostType(
+    #             id=post.id,
+    #             title=post.title,
+    #             content=post.content,
+    #             author_id=post.author.id,
+    #             author_name=post.author.username
+    #         )
+        
+    #     result = [UserType(
+    #         id=user.id, 
+    #         username=user.username, 
+    #         email=user.email, 
+    #         posts=[convert_post(p) for p in user.posts],
+    #         signup_time=user.signup_time,
+    #         expired_time=user.expired_time,
+    #         cursor=user.id  # 設置游標字段
+    #     ) for user in users]
+
+    #     return result
+    
+    """
+    Offset/limit-based Pagination
+    """
     @strawberry.field
     def get_user(self, 
                  id: Optional[int] = None, 
@@ -687,6 +738,26 @@ query ReadUser {
     username
     posts {
       id
+    }
+    signupTime
+    expiredTime
+  }
+}
+"""
+
+"""
+query {
+  getUser(cursor: 4, limit: 5) {
+    id
+    username
+    email
+    cursor
+    posts {
+      id
+      title
+      content
+      authorId
+      authorName
     }
     signupTime
     expiredTime

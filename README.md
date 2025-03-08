@@ -12,3 +12,6 @@
 - `alembic upgrade head` 實際執行 db migration
 - `alembic history --verbose` 查看歷史db migration紀錄
 - `alembic downgrade -1` 回滾到上一個版本
+
+## Hasura 可以限制 role 只能讀取
+![alt text](image.png)

@@ -99,7 +99,11 @@ class PostType:
 class UserType:
     id: strawberry.ID
     username: str
-    email: str
+    # 棄用的字段
+    @strawberry.field(deprecation_reason="Use 'contactEmail' instead")
+    def email(self) -> str:
+        return "user@example.com"
+    contact_email: str  # 新的字段
     signup_time: datetime
     expired_time: datetime
     posts: List[PostType]
@@ -137,7 +141,8 @@ class Query:
                 id: Optional[int] = None, 
                 username: Optional[str] = None,
                 cursor: Optional[int] = None, 
-                limit: int = 10) -> List[UserType]:
+                limit: int = 10,
+                post_title_filter: Optional[str] = None) -> List[UserType]:
         db = get_db_session()
         query = db.query(UserModel)
 
@@ -156,6 +161,8 @@ class Query:
             raise HTTPException(status_code=404, detail="No user found")
         
         def convert_post(post):
+            if post_title_filter and post_title_filter not in post.title:
+                return None
             return PostType(
                 id=post.id,
                 title=post.title,
@@ -167,8 +174,9 @@ class Query:
         result = [UserType(
             id=user.id, 
             username=user.username, 
-            email=user.email, 
-            posts=[convert_post(p) for p in user.posts],
+            # email=user.email,  # 已棄用的字段
+            contact_email=user.email,  # 新的字段
+            posts=[p for p in (convert_post(p) for p in user.posts) if p],
             signup_time=user.signup_time,
             expired_time=user.expired_time,
             cursor=user.id  # 設置游標字段
@@ -226,7 +234,11 @@ class Query:
         post = db.query(PostModel).filter(PostModel.id == id).first()
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
-        return PostType(id=post.id, title=post.title, content=post.content, author_id=post.author.id, author_name=post.author.username)
+        return PostType(id=post.id, 
+                        title=post.title, 
+                        content=post.content, 
+                        author_id=post.author.id, 
+                        author_name=post.author.username)
     
     # @strawberry.field
     # def get_users(self) -> List[UserType]:
@@ -243,10 +255,14 @@ class Query:
     
     @strawberry.field
     def get_posts(self) -> List[PostType]:
-        # db = next(get_db())
         db = get_db_session()
         posts = db.query(PostModel).all()
-        return [PostType(id=post.id, title=post.title, content=post.content, author_id=post.author.id, author_name=post.author.username) for post in posts]
+        return [PostType(id=post.id, 
+                         title=post.title, 
+                         content=post.content, 
+                         author_id=post.author.id, 
+                         author_name=post.author.username) 
+                         for post in posts]
     
     # 為查詢提供一個解析器
     @strawberry.field

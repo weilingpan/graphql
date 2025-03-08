@@ -132,70 +132,24 @@ class Query:
     """
     使用 Cursored-based Pagination 時有一個非常重要的要求，那就是資料必須有明確且固定的排序機制，不然 cursor 就失去了紀錄位址的功能。
     # """
-    # @strawberry.field
-    # def get_user(self, 
-    #             id: Optional[int] = None, 
-    #             username: Optional[str] = None,
-    #             cursor: Optional[int] = None, 
-    #             limit: int = 10) -> List[UserType]:
-    #     db = get_db_session()
-    #     query = db.query(UserModel)
-
-    #     if id:
-    #         query = query.filter(UserModel.id == id)
-    #     elif username:
-    #         query = query.filter(UserModel.username == username)
-    #     else:
-    #         if cursor:
-    #             query = query.filter(UserModel.id > cursor)
-    #         query = query.order_by(UserModel.id).limit(limit)
-        
-    #     users = query.all()
-
-    #     if not users:
-    #         raise HTTPException(status_code=404, detail="No user found")
-        
-    #     def convert_post(post):
-    #         return PostType(
-    #             id=post.id,
-    #             title=post.title,
-    #             content=post.content,
-    #             author_id=post.author.id,
-    #             author_name=post.author.username
-    #         )
-        
-    #     result = [UserType(
-    #         id=user.id, 
-    #         username=user.username, 
-    #         email=user.email, 
-    #         posts=[convert_post(p) for p in user.posts],
-    #         signup_time=user.signup_time,
-    #         expired_time=user.expired_time,
-    #         cursor=user.id  # 設置游標字段
-    #     ) for user in users]
-
-    #     return result
-    
-    """
-    Offset/limit-based Pagination
-    """
     @strawberry.field
     def get_user(self, 
-                 id: Optional[int] = None, 
-                 username: Optional[str] = None,
-                 limit: int = 10, 
-                 offset: int = 0) -> List[UserType]:
-        # db = next(get_db()) # 容易導致 Session 洩漏
-        db = get_db_session()  # 正確管理 DB session
-        
+                id: Optional[int] = None, 
+                username: Optional[str] = None,
+                cursor: Optional[int] = None, 
+                limit: int = 10) -> List[UserType]:
+        db = get_db_session()
         query = db.query(UserModel)
-    
+
         if id:
             query = query.filter(UserModel.id == id)
         elif username:
             query = query.filter(UserModel.username == username)
+        else:
+            if cursor:
+                query = query.filter(UserModel.id > cursor)
+            query = query.order_by(UserModel.id).limit(limit)
         
-        query = query.offset(offset).limit(limit)
         users = query.all()
 
         if not users:
@@ -209,14 +163,60 @@ class Query:
                 author_id=post.author.id,
                 author_name=post.author.username
             )
+        
+        result = [UserType(
+            id=user.id, 
+            username=user.username, 
+            email=user.email, 
+            posts=[convert_post(p) for p in user.posts],
+            signup_time=user.signup_time,
+            expired_time=user.expired_time,
+            cursor=user.id  # 設置游標字段
+        ) for user in users]
+
+        return result
     
-        return [UserType(
-            id=_.id, 
-            username=_.username, 
-            email=_.email, 
-            posts=[convert_post(p) for p in _.posts],
-            signup_time=_.signup_time,
-            expired_time=_.expired_time) for _ in users]
+    """
+    Offset/limit-based Pagination
+    """
+    # @strawberry.field
+    # def get_user(self, 
+    #              id: Optional[int] = None, 
+    #              username: Optional[str] = None,
+    #              limit: int = 10, 
+    #              offset: int = 0) -> List[UserType]:
+    #     # db = next(get_db()) # 容易導致 Session 洩漏
+    #     db = get_db_session()  # 正確管理 DB session
+        
+    #     query = db.query(UserModel)
+    
+    #     if id:
+    #         query = query.filter(UserModel.id == id)
+    #     elif username:
+    #         query = query.filter(UserModel.username == username)
+        
+    #     query = query.offset(offset).limit(limit)
+    #     users = query.all()
+
+    #     if not users:
+    #         raise HTTPException(status_code=404, detail="No user found")
+        
+    #     def convert_post(post):
+    #         return PostType(
+    #             id=post.id,
+    #             title=post.title,
+    #             content=post.content,
+    #             author_id=post.author.id,
+    #             author_name=post.author.username
+    #         )
+    
+    #     return [UserType(
+    #         id=_.id, 
+    #         username=_.username, 
+    #         email=_.email, 
+    #         posts=[convert_post(p) for p in _.posts],
+    #         signup_time=_.signup_time,
+    #         expired_time=_.expired_time) for _ in users]
     
 
     @strawberry.field

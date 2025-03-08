@@ -6,7 +6,7 @@ services:
     restart: always
     container_name: postgres
     ports:
-      - "5432:5432"
+      - "5400:5432"
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
@@ -30,3 +30,8 @@ services:
 
 volumes:
   postgres_data:
+
+
+# curl 'http://localhost:8080/v1/graphql' \
+#   -H 'x-hasura-admin-secret: mysecret' \
+#   --data-raw '{"query":"{\n  user {\n  \tid\n    name\n  }\n}\n","variables":null}'

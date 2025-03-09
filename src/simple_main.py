@@ -84,11 +84,19 @@ def get_db_session():
     with SessionLocal() as db:
         return db
 
+
+# Define interface
+@strawberry.interface
+class Node:
+    id: strawberry.ID
+    created_at: Optional[datetime] = None
+
+
 # Define GraphQL schema
 # 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
-class PostType:
-    id: strawberry.ID
+class PostType(Node):
+    # id: strawberry.ID
     title: str
     content: str
     author_id: strawberry.ID
@@ -96,15 +104,15 @@ class PostType:
 
 # 使用 Strawberry 定義的 GraphQL object type
 @strawberry.type
-class UserType:
-    id: strawberry.ID
+class UserType(Node):
+    # id: strawberry.ID
     username: str
     # # 棄用的字段
     # @strawberry.field(deprecation_reason="Use 'contactEmail' instead")
     # def email(self) -> str:
     #     return "user@example.com"
     # contact_email: str  # 新的字段
-    email: str
+    email: str # required field, if optional, set 
     signup_time: datetime
     expired_time: datetime
     posts: List[PostType]
@@ -392,7 +400,7 @@ class Subscription:
     async def count(self, up_to: int) -> AsyncGenerator[int, None]:
         for i in range(up_to):
             print(f"Subscription: {i}")
-            yield i
+            yield i + 1
             await asyncio.sleep(0.5)
 
     @strawberry.subscription

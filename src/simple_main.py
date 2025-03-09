@@ -99,11 +99,12 @@ class PostType:
 class UserType:
     id: strawberry.ID
     username: str
-    # 棄用的字段
-    @strawberry.field(deprecation_reason="Use 'contactEmail' instead")
-    def email(self) -> str:
-        return "user@example.com"
-    contact_email: str  # 新的字段
+    # # 棄用的字段
+    # @strawberry.field(deprecation_reason="Use 'contactEmail' instead")
+    # def email(self) -> str:
+    #     return "user@example.com"
+    # contact_email: str  # 新的字段
+    email: str
     signup_time: datetime
     expired_time: datetime
     posts: List[PostType]
@@ -174,8 +175,8 @@ class Query:
         result = [UserType(
             id=user.id, 
             username=user.username, 
-            # email=user.email,  # 已棄用的字段
-            contact_email=user.email,  # 新的字段
+            email=user.email,  # 已棄用的字段
+            # contact_email=user.email,  # 新的字段
             posts=[p for p in (convert_post(p) for p in user.posts) if p],
             signup_time=user.signup_time,
             expired_time=user.expired_time,

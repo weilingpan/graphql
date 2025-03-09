@@ -62,7 +62,7 @@ class UserModel(Base):
     expired_time = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=1))
 
     # Relationships
-    posts = relationship("PostModel", back_populates="author")
+    posts = relationship("PostModel", back_populates="author", cascade="all, delete-orphan")
 
 # # 使用 SQLAlchemy 事件監聽
 # @event.listens_for(UserModel, "before_insert")
@@ -276,7 +276,6 @@ class Query:
     # 為查詢提供一個解析器
     @strawberry.field
     def search(self, keyword: str) -> List[SearchResult]:
-        # db = next(get_db())
         db = get_db_session()
         keyword_filter = f"%{keyword}%"
 
@@ -290,11 +289,19 @@ class Query:
                 id=user.id,
                 username=user.username,
                 email=user.email,
-                posts=user.posts,
+                posts=[PostType(
+                    id=post.id,
+                    title=post.title,
+                    content=post.content,
+                    author_id=post.author.id,
+                    author_name=post.author.username
+                ) for post in user.posts],
                 signup_time=user.signup_time,
                 expired_time=user.expired_time,
             ))
         for post in post_results:
+            if post.author is None:
+                continue  # 跳過沒有作者的帖子
             results.append(PostType(
                 id=post.id,
                 title=post.title,
@@ -337,7 +344,11 @@ class Mutation:
         db.add(new_post)
         db.commit()
         db.refresh(new_post)
-        return PostType(id=new_post.id, title=new_post.title, content=new_post.content, author_id=new_post.author.id, author_name=new_post.author.username)
+        return PostType(id=new_post.id, 
+                        title=new_post.title, 
+                        content=new_post.content, 
+                        author_id=new_post.author.id, 
+                        author_name=new_post.author.username)
 
     @strawberry.mutation
     def update_user(self, id: strawberry.ID, username: Optional[str] = None, email: Optional[str] = None) -> UserType:
@@ -375,6 +386,21 @@ class Mutation:
             posts=user.posts,
             signup_time=user.signup_time,
             expired_time=user.expired_time)
+
+    @strawberry.mutation
+    def delete_post(self, id: strawberry.ID) -> PostType:
+        # db = next(get_db())
+        db = get_db_session()
+        post = db.query(PostModel).filter(PostModel.id == id).first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        db.delete(post)
+        db.commit()
+        return PostType(id=post.id, 
+                        title=post.title, 
+                        content=post.content, 
+                        author_id=post.author.id, 
+                        author_name=post.author.username)   
     
     # @strawberry.mutation
     # async def upload_file(self, file_id: str) -> str:

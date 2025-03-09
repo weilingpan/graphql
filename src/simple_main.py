@@ -402,16 +402,16 @@ class Mutation:
                         author_id=post.author.id, 
                         author_name=post.author.username)   
     
-    # @strawberry.mutation
-    # async def upload_file(self, file_id: str) -> str:
-    #     """模擬上傳文件 (假設為背景任務)"""
-    #     upload_progress[file_id] = 0  # 初始化進度
+    @strawberry.mutation
+    async def upload_file(self, file_id: str) -> str:
+        """模擬上傳文件 (假設為背景任務)"""
+        upload_progress[file_id] = 0  # 初始化進度
 
-    #     for i in range(1, 11):
-    #         await asyncio.sleep(0.5)  # 模擬處理時間
-    #         upload_progress[file_id] = i * 10  # 更新進度
+        for i in range(1, 11):
+            await asyncio.sleep(1)  # 模擬處理時間
+            upload_progress[file_id] = i * 10  # 更新進度
         
-    #     return f"檔案 {file_id} 上傳完成"
+        return f"檔案 {file_id} 上傳完成"
     
     # """
     # mutation upoloadFile{
@@ -814,4 +814,15 @@ query {
     expiredTime
   }
 }
+"""
+
+"""
+    mutation{
+        uploadFile(fileId: "example.txt")
+    }
+
+    subscription sub_file_upload{
+        fileUploadProgress(fileId: "example.txt")
+    }
+    
 """

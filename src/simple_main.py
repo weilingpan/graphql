@@ -521,9 +521,12 @@ app.include_router(graphql_app, prefix="/graphql")
 @app.post("/upload/")
 async def upload(file: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
     """處理檔案上傳，並在背景執行模擬的上傳進度"""
-    file_id = file.filename
-    background_tasks.add_task(upload_file_simulation, file_id)  # 在背景執行上傳
-    return {"message": "上傳開始 in background_ ", "file_id": file_id}
+    file_name = file.filename
+    # background_tasks.add_task(upload_file_simulation, file_name)  # 在背景執行上傳
+    # return {"message": "上傳開始 in background ", "file_name": file_name}
+
+    job = upload_file_queue.enqueue(process_file, file_name)  # 在背景執行上傳
+    return {"message": "上傳開始 in queue ", "file_name": file_name}
 
 # 模擬檔案上傳的背景任務
 async def upload_file_simulation(file_id: str):

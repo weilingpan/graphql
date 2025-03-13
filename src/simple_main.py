@@ -1,4 +1,5 @@
 import os
+import rq.job
 import uuid
 import time
 import asyncio
@@ -23,8 +24,9 @@ from pydantic import BaseModel
 from tabulate import tabulate
 
 # 建立 Redis 連線
-redis_conn = Redis(host="redis", port=6379, decode_responses=True)
-queue = Queue("uploads", connection=redis_conn)  # 建立 Redis 任務佇列 rq worker uploads
+redis_conn = Redis(host="redis", port=6379, decode_responses=False)
+queue_upload_file = Queue("upload_file", connection=redis_conn)
+# 啟動 worker: rq worker upload_file
 
 # MongoDB 連線
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://mymongo:27017/mydatabase")
@@ -312,7 +314,7 @@ class Query:
 
         return results
 
-upload_progress = {}
+upload_progress_dict = {}
 @strawberry.type
 class Mutation:
     @strawberry.mutation
@@ -404,21 +406,39 @@ class Mutation:
     
     @strawberry.mutation
     async def upload_file(self, file_id: str) -> str:
-        """模擬上傳文件 (假設為背景任務)"""
-        upload_progress[file_id] = 0  # 初始化進度
+        """模擬上傳文件 (沒有放背景執行)"""
+        upload_progress_dict[file_id] = 0  # 初始化進度
 
         for i in range(1, 11):
             await asyncio.sleep(1)  # 模擬處理時間
-            upload_progress[file_id] = i * 10  # 更新進度
+            upload_progress_dict[file_id] = i * 10  # 更新進度
         
         return f"檔案 {file_id} 上傳完成"
+    """
+    mutation upoloadFile{
+        uploadFile(fileId: "file1.txt")
+    }
+    """
     
-    # """
-    # mutation upoloadFile{
-    #     uploadFile(fileId: "file1.txt")
-    # }
-    # """
-
+    @strawberry.mutation
+    async def upload_file_in_task(self, file_name: str) -> str:
+        """模擬上傳文件 (放背景執行)"""
+        job = queue_upload_file.enqueue(process_file, file_name)  # 在背景執行上傳
+        print(f"Job {job.id} added to queue")
+        return f"開始上傳檔案 {file_name}, {job.id}"
+    """
+    mutation uploadFile{
+        uploadFileInTask (fileName: "example.txt")
+    }
+    """
+    
+# 到 worker 看 log, 記得要先啟動 worker !!!!!!
+def process_file(file_name: str):
+    """ 模擬處理上傳的檔案，並更新進度 """
+    for i in range(1, 11):
+        time.sleep(1)
+        progress = i * 10
+        print(f"Processing file {file_name}, progress: {progress}%")
 
 @strawberry.type
 class Subscription:
@@ -432,24 +452,37 @@ class Subscription:
     @strawberry.subscription
     async def file_upload_progress(self, file_id: str) -> AsyncGenerator[int, None]:
         """訂閱檔案上傳進度"""
-        while file_id in upload_progress and upload_progress[file_id] < 100:
-            yield upload_progress[file_id]
+        while file_id in upload_progress_dict and upload_progress_dict[file_id] < 100:
+            yield upload_progress_dict[file_id]
             await asyncio.sleep(0.5)  # 每 0.5 秒推送一次進度
 
         yield 100 # 確保最後 100% 狀態被傳送
 
     @strawberry.subscription
-    async def upload_progress(self, file_id: str) -> AsyncGenerator[int, None]:
-        """GraphQL 訂閱檔案上傳進度"""
+    async def upload_progress(self, job_id: str) -> AsyncGenerator[str, None]:
+        """ 監控 Redis 任務進度，回傳整數型進度 (0~100%) """
         while True:
-            progress = redis_conn.hget("upload_progress", file_id)
-            if progress is None:
-                yield 0  # 預設回傳 0%
+            try:
+                job = rq.job.Job.fetch(str(job_id), connection=redis_conn)
+            except rq.exceptions.NoSuchJobError:
+                yield "如果找不到 Job 回傳 0"
+                break
+
+            if job.is_finished:
+                yield "任務完成回傳 100%"
+                break
+            elif job.is_failed:
+                yield "任務失敗回傳 -1"
+                break
             else:
-                yield int(progress)
-                if int(progress) == 100:
-                    break  # 上傳完成後停止
-            await asyncio.sleep(1)  # 每秒回傳一次
+                yield "資料處理中"
+
+            await asyncio.sleep(1)  # 每秒更新一次
+    """
+    subscription checkUploadProgress{
+        uploadProgress(jobId: "b84b8cbd-3bfd-4858-98cc-a1d7fc98aa25")
+    }
+    """
 
 """ 應用情境 - 檔案上傳進度追蹤
 使用 FastAPI POST API 處理檔案上傳，並使用 BackgroundTasks (檔案上傳可能會超過 1 分鐘，或需要追蹤進度，建議使用 Redis Queue！)
@@ -469,29 +502,31 @@ app.include_router(graphql_app, prefix="/graphql")
 async def upload(file: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
     """處理檔案上傳，並在背景執行模擬的上傳進度"""
     file_id = file.filename
-    # background_tasks.add_task(upload_file_simulation, file_id)  # 在背景執行上傳
-    queue.enqueue(upload_file_simulation2, file_id)  # 加入任務佇列
-    return {"message": "上傳開始", "file_id": file_id}
+    background_tasks.add_task(upload_file_simulation, file_id)  # 在背景執行上傳
+    return {"message": "上傳開始 in background_ ", "file_id": file_id}
+
+    # job = queue_upload_file.enqueue(upload_file_simulation2, file_id)  # 加入任務佇列
+    # return {"message": "上傳開始 in queue ", "file_id": file_id}
 
 # 模擬檔案上傳的背景任務
 async def upload_file_simulation(file_id: str):
-    upload_progress[file_id] = 0
+    upload_progress_dict[file_id] = 0
     for i in range(1, 11):
-        print(upload_progress)
-        await asyncio.sleep(0.5)  # 模擬上傳過程
-        upload_progress[file_id] = i * 10
-    upload_progress[file_id] = 100
-    print(upload_progress)
+        print(upload_progress_dict)
+        await asyncio.sleep(1)  # 模擬上傳過程
+        upload_progress_dict[file_id] = i * 10
+    upload_progress_dict[file_id] = 100
+    print(upload_progress_dict)
 
-async def upload_file_simulation2(file_id: str):
-    """模擬檔案上傳進度"""
-    redis_conn.hset("upload_progress", file_id, 0)  # 初始化進度
+# async def upload_file_simulation2(file_id: str):
+#     """模擬檔案上傳進度"""
+#     redis_conn.hset("upload_progress", file_id, 0)  # 初始化進度
+#     for i in range(1, 11):
+#         await asyncio.sleep(0.5) 
+#         redis_conn.hset("upload_progress", file_id, i * 10)  # 更新進度
 
-    for i in range(1, 11):
-        time.sleep(0.5)  # 模擬上傳過程
-        redis_conn.hset("upload_progress", file_id, i * 10)  # 更新進度
-
-    redis_conn.hset("upload_progress", file_id, 100)  # 完成
+#         progress = redis_conn.hget("upload_progress", file_id)
+#     redis_conn.hset("upload_progress", file_id, 100)  # 完成
 
 # 啟用 CORS 中間件
 app.add_middleware(

@@ -496,7 +496,10 @@ class Subscription:
                 yield "任務失敗回傳 -1"
                 break
             else:
-                yield f"資料處理中 {job.meta['progress']}%"
+                try:
+                    yield f"資料處理中 {job.meta['progress']}%"
+                except Exception as e:
+                    yield "資料處理中 0%"
 
             await asyncio.sleep(1)  # 每秒更新一次
     """

@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 from typing import List, Optional, AsyncGenerator
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File, BackgroundTasks
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from strawberry.asgi import GraphQL
 from sqlalchemy import ForeignKey, create_engine, Column, Integer, String, DateTime, event
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
@@ -537,6 +537,16 @@ async def upload_file_simulation(file_id: str):
         upload_progress_dict[file_id] = i * 10
     upload_progress_dict[file_id] = 100
     print(upload_progress_dict)
+
+async def event_stream():
+    """模擬即時資料流，使用非同步方式來減少延遲"""
+    for i in range(10):
+        await asyncio.sleep(1)  # 使用 asyncio.sleep 非同步等待
+        yield f"data: The current time is {time.ctime()}\n\n"
+
+@app.get("/stream")
+async def stream():
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 # 啟用 CORS 中間件
 app.add_middleware(

@@ -131,6 +131,12 @@ class HelloResponse:
     user_agent: str
     custom_header: str
 
+@strawberry.type
+class UploadResponseType:
+    message: str
+    file_name: str
+    job_id: str
+
 # 定義Union型別
 SearchResult = strawberry.union("SearchResult", (UserType, PostType))
 
@@ -397,6 +403,7 @@ class Mutation:
     @strawberry.mutation
     def delete_post(self, id: strawberry.ID) -> PostType:
         # db = next(get_db())
+        
         db = get_db_session()
         post = db.query(PostModel).filter(PostModel.id == id).first()
         if not post:
@@ -426,11 +433,16 @@ class Mutation:
     """
     
     @strawberry.mutation
-    async def upload_file_in_task(self, file_name: str) -> str:
+    async def upload_file_in_task(self, file_name: str) -> UploadResponseType:
         """模擬上傳文件 (放背景執行)"""
         job = upload_file_queue.enqueue(process_file, file_name)  # 在背景執行上傳
         print(f"Job {job.id} added to queue")
-        return f"開始上傳檔案 {file_name}, {job.id}"
+        return UploadResponseType(
+            message="開始上傳檔案",
+            file_name=file_name,
+            job_id=str(job.id)
+        )
+        # return f"開始上傳檔案 {file_name}, {job.id}"
     """
     mutation uploadFile{
         uploadFileInTask (fileName: "example.txt")

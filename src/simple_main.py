@@ -146,6 +146,11 @@ class UploadResponseType:
     file_name: str
     job_id: str
 
+@strawberry.input
+class UserInput:
+    username: str
+    email: str
+
 # 定義Union型別
 SearchResult = strawberry.union("SearchResult", (UserType, PostType))
 
@@ -338,7 +343,8 @@ upload_progress_dict = {}
 @strawberry.type
 class Mutation:
     @strawberry.mutation
-    def create_user(self, username: str, email: str) -> UserType:
+    # def create_user(self, username: str, email: str) -> UserType:
+    def create_user(self, input: UserInput) -> UserType:
         # user_info = {
         #     "username": username,
         #     "email": email
@@ -347,7 +353,7 @@ class Mutation:
 
         # db = next(get_db())
         db = get_db_session()
-        new_user = UserModel(username=username, email=email)
+        new_user = UserModel(username=input.username, email=input.email)
         db.add(new_user)
         db.commit()
         db.refresh(new_user)

@@ -22,6 +22,8 @@ from redis import Redis
 from pymongo import MongoClient
 from pydantic import BaseModel
 from tabulate import tabulate
+from enum import Enum
+
 
 # 建立 Redis 連線
 redis_conn = Redis(host="redis", port=6379, decode_responses=False)
@@ -67,6 +69,7 @@ class UserModel(Base):
     email = Column(String)
     signup_time = Column(DateTime, default=datetime.utcnow())
     expired_time = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=1))
+    role = Column(String, default="user")
 
     # Relationships
     posts = relationship("PostModel", back_populates="author", cascade="all, delete-orphan")
@@ -98,6 +101,11 @@ class Node:
     id: strawberry.ID
     created_at: Optional[datetime] = None
 
+@strawberry.enum
+class UserRole(Enum):
+    ADMIN = "admin"
+    USER = "user"
+    GUEST = "guest"
 
 # Define GraphQL schema
 # 使用 Strawberry 定義的 GraphQL object type
@@ -124,6 +132,7 @@ class UserType(Node):
     expired_time: datetime
     posts: List[PostType]
     cursor: Optional[str] = None  # 添加游標字段
+    role: UserRole = UserRole.USER
 
 @strawberry.type
 class HelloResponse:
@@ -139,7 +148,6 @@ class UploadResponseType:
 
 # 定義Union型別
 SearchResult = strawberry.union("SearchResult", (UserType, PostType))
-
 
 # Define GraphQL Query and Mutation
 @strawberry.type
@@ -201,7 +209,8 @@ class Query:
             posts=[p for p in (convert_post(p) for p in user.posts) if p],
             signup_time=user.signup_time,
             expired_time=user.expired_time,
-            cursor=user.id  # 設置游標字段
+            cursor=user.id,  # 設置游標字段
+            role=user.role
         ) for user in users]
 
         return result
